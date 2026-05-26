@@ -1,0 +1,136 @@
+# docker-compose.dev.yml — สำหรับทดสอบบน PC (ไม่ต้องมี Pi)
+# วิธีใช้: .\setup-dev.ps1  หรือ  docker compose -f docker-compose.dev.yml up -d
+#
+# Services ที่ขึ้น:
+#   influxdb   → http://localhost:8086   (admin/adminpass123)
+#   mosquitto  → localhost:1883
+#   backend    → http://localhost:8000/docs
+#   frontend   → http://localhost:5173   (React dashboard + HMR)
+#   grafana    → http://localhost:3001   (admin/admin)
+#
+# ทดสอบ pipeline:
+#   1. .\setup-dev.ps1
+#   2. python mock_sensor.py --scenario full --interval 3
+#   3. python test_pipeline.py
+#   4. เปิด http://localhost:5173 เพื่อดู dashboard
+
+services:
+
+  # ── InfluxDB 2.x ──────────────────────────────────────────────────────────
+  influxdb:
+    image: influxdb:2.7
+    container_name: pm25_influxdb_dev
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE:        setup
+      DOCKER_INFLUXDB_INIT_USERNAME:    admin
+      DOCKER_INFLUXDB_INIT_PASSWORD:    adminpass123
+      DOCKER_INFLUXDB_INIT_ORG:         airguard
+      DOCKER_INFLUXDB_INIT_BUCKET:      pm25_data
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: dev-token-airguard-2024
+      DOCKER_INFLUXDB_INIT_RETENTION:   26w
+    volumes:
+      - influxdb_dev_data:/var/lib/influxdb2
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Mosquitto MQTT ────────────────────────────────────────────────────────
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: pm25_mosquitto_dev
+    ports:
+      - "1883:1883"
+      - "9001:9001"   # WebSocket port (สำหรับ browser MQTT client)
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto_dev_data:/mosquitto/data
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── FastAPI Backend ───────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pm25_backend_dev
+    ports:
+      - "8000:8000"
+    environment:
+      # InfluxDB
+      INFLUX_URL:    http://influxdb:8086
+      INFLUX_TOKEN:  dev-token-airguard-2024
+      INFLUX_ORG:    airguard
+      INFLUX_BUCKET: pm25_data
+      # SQLite
+      DATABASE_URL:  sqlite:////data/pm25.db
+      # JWT
+      SECRET_KEY:    dev-secret-key-change-in-production
+      # MQTT
+      MQTT_BROKER:   mosquitto
+      MQTT_PORT:     1883
+      # Notification (ทิ้งว่างไว้ก่อน ระหว่าง dev)
+      LINE_NOTIFY_TOKEN:   ""
+      TELEGRAM_BOT_TOKEN:  ""
+      TELEGRAM_CHAT_ID:    ""
+      # Ollama (optional)
+      OLLAMA_HOST:  http://host.docker.internal:11434
+      OLLAMA_MODEL: phi3
+    volumes:
+      - ./backend:/app          # mount source -- ทำให้ --reload ทำงาน
+      - sqlite_dev_data:/data
+    depends_on:
+      influxdb:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Frontend — Vite dev server (HMR) ─────────────────────────────────────
+  frontend:
+    image: node:20-alpine
+    container_name: pm25_frontend_dev
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules          # anonymous volume: keeps container node_modules separate from host
+    environment:
+      VITE_API_URL: ""             # empty → Vite proxy (/api → backend:8000)
+      VITE_WS_URL:  ""
+    command: sh -c "npm install && npm run dev -- --host"
+    depends_on:
+      backend:
+        condition: service_started
+
+  # ── Grafana (optional monitoring) ─────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: pm25_grafana_dev
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP:     "false"
+    volumes:
+      - grafana_dev_data:/var/lib/grafana
+    depends_on:
+      - influxdb
+
+volumes:
+  influxdb_dev_data:
+  mosquitto_dev_data:
+  sqlite_dev_data:
+  grafana_dev_data:

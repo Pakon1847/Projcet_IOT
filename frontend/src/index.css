@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base ──────────────────────────────────────────────────────────────────── */
+:root { color-scheme: dark; }
+
+body {
+  @apply bg-[#0f172a] text-slate-100 font-sans antialiased;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { @apply bg-transparent; }
+::-webkit-scrollbar-thumb { @apply bg-slate-700 rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-slate-500; }
+
+/* Range input */
+input[type="range"] { @apply h-2 rounded-full cursor-pointer; }
+
+/* Recharts override */
+.recharts-legend-item-text { font-size: 12px !important; }
+
+/* ── Keyframes ─────────────────────────────────────────────────────────────── */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-12px); }
+}
+
+@keyframes blob {
+  0%, 100% { transform: translate(0,0)   scale(1); }
+  33%       { transform: translate(20px,-20px) scale(1.08); }
+  66%       { transform: translate(-15px,10px)  scale(0.94); }
+}
+
+@keyframes shimmer {
+  from { background-position: -400px 0; }
+  to   { background-position: 400px 0; }
+}
+
+/* ── Utility classes ───────────────────────────────────────────────────────── */
+.animate-fade-slide-up {
+  animation: fadeSlideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-fade-in  { animation: fadeIn  0.35s ease both; }
+.animate-scale-in { animation: scaleIn 0.35s cubic-bezier(0.16,1,0.3,1) both; }
+.animate-float    { animation: float 4s ease-in-out infinite; }
+.animate-blob     { animation: blob  8s ease-in-out infinite; }
+
+/* stagger helpers */
+.delay-75  { animation-delay: 75ms; }
+.delay-150 { animation-delay: 150ms; }
+.delay-225 { animation-delay: 225ms; }
+.delay-300 { animation-delay: 300ms; }
+
+/* skeleton shimmer */
+.skeleton {
+  background: linear-gradient(90deg,
+    #1e293b 25%, #2d3f55 50%, #1e293b 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+/* ── Utility components ────────────────────────────────────────────────────── */
+@layer components {
+  .card {
+    @apply bg-[#1e293b] rounded-2xl border border-slate-700/50 p-4
+           transition-all duration-300;
+  }
+  .card-hover {
+    @apply hover:-translate-y-0.5 hover:shadow-lg hover:border-slate-600/60
+           hover:shadow-slate-900/50;
+  }
+  .btn-primary {
+    @apply px-4 py-2 rounded-xl font-semibold bg-sky-600 hover:bg-sky-500
+           active:scale-95 text-white transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed
+           shadow-sm hover:shadow-md hover:shadow-sky-900/40;
+  }
+  .btn-ghost {
+    @apply px-4 py-2 rounded-xl font-semibold bg-slate-800 hover:bg-slate-700
+           active:scale-95 text-slate-300 transition-all duration-200;
+  }
+  .input {
+    @apply w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700
+           text-slate-100 placeholder-slate-500
+           focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/30
+           transition-all duration-200 text-sm;
+  }
+  .page {
+    @apply min-h-screen pt-14 pb-24 md:pb-8 px-4 max-w-2xl mx-auto;
+  }
+  /* page enter animation applied to every <main class="page …"> */
+  main.page {
+    animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}

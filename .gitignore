@@ -1,0 +1,54 @@
+# Environment
+.env
+*.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+*.egg
+
+# Node / React
+node_modules/
+dist/
+build/
+.pnp
+.pnp.js
+
+# ML / Data
+ml/data/raw/*.csv
+ml/data/processed/*.csv
+ml/models/*.h5
+ml/models/*.tflite
+ml/models/*.keras
+ml/models/*.onnx
+*.pkl
+
+# Database
+*.db
+*.sqlite3
+sqlite_data/
+
+# Docker volumes
+influxdb_data/
+grafana_data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+logs/

@@ -1,0 +1,9 @@
+pyserial==3.5
+paho-mqtt==2.0.0
+adafruit-circuitpython-bme280==2.6.26
+adafruit-blinka==8.43.0
+adafruit-circuitpython-ssd1306==2.12.14
+RPi.GPIO==0.7.1
+python-dotenv==1.0.1
+numpy==1.26.4
+Pillow==10.3.0

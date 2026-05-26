@@ -1,0 +1,52 @@
+# /etc/systemd/system/airguard-firmware.service
+#
+# วิธีติดตั้ง (setup.sh ทำให้อัตโนมัติ):
+#   sudo cp deploy/airguard-firmware.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable airguard-firmware
+#   sudo systemctl start  airguard-firmware
+#
+# คำสั่งที่ใช้บ่อย:
+#   sudo systemctl status  airguard-firmware
+#   sudo systemctl restart airguard-firmware
+#   journalctl -u airguard-firmware -f
+
+[Unit]
+Description=AirGuard Pi — PM2.5 Firmware
+Documentation=https://github.com/you/airguard-pi
+# รอ network และ mosquitto Docker container ขึ้นมาก่อน
+After=network-online.target docker.service
+Wants=network-online.target
+# ถ้า Docker compose รันผ่าน service ให้เพิ่ม:
+# After=pm25-docker.service
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+
+# ── Working directory และ Python venv ────────────────────────────
+WorkingDirectory=/home/pi/airguard/firmware
+ExecStart=/home/pi/airguard/firmware/venv/bin/python /home/pi/airguard/firmware/main.py
+
+# ── Restart policy ────────────────────────────────────────────────
+Restart=on-failure
+RestartSec=10s
+StartLimitIntervalSec=120s
+StartLimitBurst=5
+
+# ── Logging ───────────────────────────────────────────────────────
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=airguard-firmware
+
+# ── Environment ───────────────────────────────────────────────────
+EnvironmentFile=/home/pi/airguard/firmware/.env
+Environment=PYTHONUNBUFFERED=1
+
+# ── Security (optional hardening) ────────────────────────────────
+# PrivateTmp=true
+# NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

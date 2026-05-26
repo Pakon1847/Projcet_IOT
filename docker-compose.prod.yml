@@ -1,0 +1,165 @@
+# docker-compose.prod.yml — Production deployment on Raspberry Pi
+# ─────────────────────────────────────────────────────────────────
+# วิธีใช้:
+#   cp .env.example .env   (แก้ไขค่าต่างๆ)
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Services & Ports:
+#   Frontend   → http://pi-ip/         (port 80)
+#   Backend    → http://pi-ip:8000/    (API docs: /docs)
+#   Grafana    → http://pi-ip:3001/    (admin / ${GRAFANA_PASSWORD})
+#   InfluxDB   → http://pi-ip:8086/
+#   Mosquitto  → pi-ip:1883            (MQTT)
+# ─────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── InfluxDB 2.x ────────────────────────────────────────────────
+  influxdb:
+    image: influxdb:2.7
+    container_name: pm25_influxdb
+    restart: always
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE:        setup
+      DOCKER_INFLUXDB_INIT_USERNAME:    ${INFLUX_USERNAME:-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD:    ${INFLUX_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG:         ${INFLUX_ORG:-airguard}
+      DOCKER_INFLUXDB_INIT_BUCKET:      ${INFLUX_BUCKET:-pm25_data}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_TOKEN}
+      DOCKER_INFLUXDB_INIT_RETENTION:   26w          # เก็บ 6 เดือน
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    mem_limit: 512m
+    cpus: "1.0"
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Mosquitto MQTT ───────────────────────────────────────────────
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: pm25_mosquitto
+    restart: always
+    ports:
+      - "1883:1883"
+      - "9001:9001"         # WebSocket (สำหรับ browser MQTT client)
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    mem_limit: 64m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ── FastAPI Backend ──────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: airguard/backend:latest
+    container_name: pm25_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      # InfluxDB
+      INFLUX_URL:    http://influxdb:8086
+      INFLUX_TOKEN:  ${INFLUX_TOKEN}
+      INFLUX_ORG:    ${INFLUX_ORG:-airguard}
+      INFLUX_BUCKET: ${INFLUX_BUCKET:-pm25_data}
+      # SQLite
+      DATABASE_URL:  sqlite:////data/pm25.db
+      # JWT
+      SECRET_KEY:    ${SECRET_KEY}
+      ALGORITHM:     HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+      # MQTT
+      MQTT_BROKER:   mosquitto
+      MQTT_PORT:     1883
+      # Notifications (ใส่ token จริงใน .env)
+      LINE_NOTIFY_TOKEN:  ${LINE_NOTIFY_TOKEN:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID:   ${TELEGRAM_CHAT_ID:-}
+    volumes:
+      - sqlite_data:/data
+    depends_on:
+      influxdb:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    mem_limit: 256m
+    cpus: "1.5"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── React Frontend (nginx) ───────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: airguard/frontend:latest
+    container_name: pm25_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    mem_limit: 128m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ── Grafana ──────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: pm25_grafana
+    restart: always
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-airguard2024}
+      GF_USERS_ALLOW_SIGN_UP:     "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_INSTALL_PLUGINS:         grafana-clock-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - influxdb
+    mem_limit: 256m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+volumes:
+  influxdb_data:
+  mosquitto_data:
+  mosquitto_log:
+  sqlite_data:
+  grafana_data:
