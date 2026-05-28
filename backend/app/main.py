@@ -5,8 +5,9 @@ from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.database import init_db, get_influx_client, close_influx
-from app.routers import auth, sensor, fan, alert, ai
+from app.routers import auth, sensor, fan, alert, ai, outdoor, schedule
 from app.mqtt_subscriber import mqtt_subscriber, set_event_loop
+from app.services.scheduler_service import start_scheduler, stop_scheduler
 
 
 @asynccontextmanager
@@ -16,8 +17,10 @@ async def lifespan(app: FastAPI):
     get_influx_client()                    # warm up InfluxDB
     set_event_loop(asyncio.get_event_loop())
     mqtt_subscriber.start()
+    start_scheduler()                      # Fan schedule checker (every 1 min)
     yield
     # ── Shutdown ─────────────────────────────────────────
+    stop_scheduler()
     mqtt_subscriber.stop()
     close_influx()
 
@@ -38,11 +41,13 @@ app.add_middleware(
 )
 
 # Routers
-app.include_router(auth.router,   prefix="/api/auth",   tags=["Auth"])
-app.include_router(sensor.router, prefix="/api/sensor", tags=["Sensor"])
-app.include_router(fan.router,    prefix="/api/fan",    tags=["Fan Control"])
-app.include_router(alert.router,  prefix="/api/alert",  tags=["Alert"])
-app.include_router(ai.router,     prefix="/api/ai",     tags=["AI"])
+app.include_router(auth.router,     prefix="/api/auth",     tags=["Auth"])
+app.include_router(sensor.router,   prefix="/api/sensor",   tags=["Sensor"])
+app.include_router(fan.router,      prefix="/api/fan",      tags=["Fan Control"])
+app.include_router(alert.router,    prefix="/api/alert",    tags=["Alert"])
+app.include_router(ai.router,       prefix="/api/ai",       tags=["AI"])
+app.include_router(outdoor.router,  prefix="/api/outdoor",  tags=["Outdoor Air"])
+app.include_router(schedule.router, prefix="/api/schedule", tags=["Fan Schedule"])
 
 
 @app.get("/")

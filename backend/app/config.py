@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     OLLAMA_HOST:  str = "http://localhost:11434"
     OLLAMA_MODEL: str = "phi3"
 
+    # Outdoor Air (Air4Thai — PCD)
+    OUTDOOR_STATION_ID: str   = ""     # เช่น "02t" สำหรับดินแดง ถ้าว่างใช้ nearest แทน
+    DEVICE_LAT:         float = 13.756  # latitude ของ device (ค่า default = กทม.)
+    DEVICE_LON:         float = 100.501 # longitude ของ device
+
     # Thai AQI Standard (กรมควบคุมมลพิษ พ.ศ. 2566)
     PM25_STANDARD_24H:  float = 37.5
     PM25_STANDARD_YEAR: float = 15.0

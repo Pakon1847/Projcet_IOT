@@ -16,6 +16,7 @@ from paho.mqtt.enums import CallbackAPIVersion
 from app.config import settings
 from app.services.influx import write_sensor_reading
 from app.services.notification import notify
+from app.services import anomaly
 from app.ws.manager import ws_manager
 
 logger = logging.getLogger(__name__)
@@ -82,6 +83,15 @@ class MQTTSubscriber:
                 asyncio.run_coroutine_threadsafe(
                     self._check_alerts(device_id, payload), _loop
                 )
+
+            # 4. Anomaly detection (rolling window)
+            pm25_val = payload.get("pm2_5")
+            if pm25_val is not None:
+                alert_info = anomaly.check(device_id, float(pm25_val))
+                if alert_info and _loop and _loop.is_running():
+                    asyncio.run_coroutine_threadsafe(
+                        ws_manager.broadcast(device_id, {"anomaly": alert_info}), _loop
+                    )
 
             logger.debug(f"Processed sensor data: device={device_id} pm2_5={payload.get('pm2_5')}")
 

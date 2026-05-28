@@ -5,6 +5,7 @@ import { sensorApi }           from '../api/sensor'
 import { AQIGauge }            from '../components/AQIGauge'
 import { PM25Chart }           from '../components/PM25Chart'
 import { StatCard }            from '../components/StatCard'
+import { OutdoorCard }         from '../components/OutdoorCard'
 import { getAQIInfo, PM25_STANDARD_24H } from '../lib/aqi'
 import type { SensorReading }  from '../api/sensor'
 import { formatDistanceToNow, parseISO } from 'date-fns'
@@ -13,10 +14,17 @@ import { th } from 'date-fns/locale'
 export function DashboardPage() {
   const deviceId    = useStore((s) => s.deviceId)
   const liveReading = useStore((s) => s.liveReading)
-  const [history,  setHistory] = useState<SensorReading[]>([])
-  const [loading,  setLoading] = useState(true)
+  const [history,   setHistory]   = useState<SensorReading[]>([])
+  const [loading,   setLoading]   = useState(true)
+  const [anomaly,   setAnomaly]   = useState<{ message: string; type: string } | null>(null)
 
-  useWebSocket(deviceId)
+  useWebSocket(deviceId, (msg) => {
+    if (msg.anomaly) {
+      setAnomaly(msg.anomaly)
+      // auto-dismiss หลัง 30 วินาที
+      setTimeout(() => setAnomaly(null), 30_000)
+    }
+  })
 
   useEffect(() => {
     const load = async () => {
@@ -77,8 +85,25 @@ export function DashboardPage() {
             <AQIGauge aqi={reading.aqi} pm25={reading.pm25} size={230} />
           </div>
 
-          {/* Alert banner */}
-          {reading.pm25 > PM25_STANDARD_24H && (
+          {/* Anomaly alert banner */}
+          {anomaly && (
+            <div className={`animate-fade-slide-up delay-100 rounded-xl px-4 py-3 mb-4
+                            text-sm flex items-start gap-2 shadow-lg
+                            ${anomaly.type === 'critical'
+                              ? 'bg-red-900/40 border border-red-600/60 text-red-200 shadow-red-950/30'
+                              : 'bg-amber-900/30 border border-amber-600/60 text-amber-200 shadow-amber-950/30'
+                            }`}>
+              <span className="mt-0.5 shrink-0">{anomaly.type === 'critical' ? '🚨' : '⚠️'}</span>
+              <span className="leading-relaxed whitespace-pre-line">{anomaly.message}</span>
+              <button
+                onClick={() => setAnomaly(null)}
+                className="ml-auto shrink-0 opacity-60 hover:opacity-100 transition-opacity text-base"
+              >✕</button>
+            </div>
+          )}
+
+          {/* PM2.5 standard alert banner */}
+          {!anomaly && reading.pm25 > PM25_STANDARD_24H && (
             <div className="animate-fade-slide-up delay-150
                             bg-red-900/30 border border-red-700/60 rounded-xl
                             px-4 py-3 mb-4 text-sm text-red-300
@@ -113,6 +138,9 @@ export function DashboardPage() {
                 sub={reading.fan_speed > 0 ? 'กำลังทำงาน' : 'ปิดอยู่'} />
             </div>
           </div>
+
+          {/* Outdoor Card */}
+          <OutdoorCard indoorPm25={reading.pm25} />
 
           {/* Chart */}
           <div className="card animate-fade-slide-up hover:shadow-lg

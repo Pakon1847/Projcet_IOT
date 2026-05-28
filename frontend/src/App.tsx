@@ -9,6 +9,7 @@ import { FanPage }            from './pages/FanPage'
 import { AlertsPage }         from './pages/AlertsPage'
 import { AIChatPage }         from './pages/AIChatPage'
 import { SystemFlowPage }     from './pages/SystemFlowPage'
+import { SchedulePage }       from './pages/SchedulePage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useStore((s) => s.token)
@@ -30,7 +31,8 @@ export default function App() {
         <Route path="/fan"     element={<RequireAuth><FanPage /></RequireAuth>} />
         <Route path="/alerts"  element={<RequireAuth><AlertsPage /></RequireAuth>} />
         <Route path="/ai"      element={<RequireAuth><AIChatPage /></RequireAuth>} />
-        <Route path="/system"  element={<RequireAuth><SystemFlowPage /></RequireAuth>} />
+        <Route path="/schedule" element={<RequireAuth><SchedulePage /></RequireAuth>} />
+        <Route path="/system"   element={<RequireAuth><SystemFlowPage /></RequireAuth>} />
         <Route path="*"        element={<Navigate to="/" replace />} />
       </Routes>
     </>

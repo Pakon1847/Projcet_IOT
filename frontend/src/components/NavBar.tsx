@@ -2,12 +2,13 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 
 const links = [
-  { to: '/',        icon: '📊', label: 'Dashboard' },
-  { to: '/history', icon: '📈', label: 'ประวัติ'    },
-  { to: '/fan',     icon: '🌀', label: 'พัดลม'      },
-  { to: '/alerts',  icon: '🔔', label: 'แจ้งเตือน'  },
-  { to: '/ai',      icon: '🤖', label: 'AI Chat'    },
-  { to: '/system',  icon: '🔗', label: 'System'     },
+  { to: '/',          icon: '📊', label: 'Dashboard' },
+  { to: '/history',   icon: '📈', label: 'ประวัติ'    },
+  { to: '/fan',       icon: '🌀', label: 'พัดลม'      },
+  { to: '/schedule',  icon: '⏰', label: 'Schedule'   },
+  { to: '/alerts',    icon: '🔔', label: 'แจ้งเตือน'  },
+  { to: '/ai',        icon: '🤖', label: 'AI Chat'    },
+  { to: '/system',    icon: '🔗', label: 'System'     },
 ]
 
 export function NavBar() {

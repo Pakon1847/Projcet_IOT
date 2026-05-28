@@ -3,10 +3,15 @@ import { useStore } from '../store/useStore'
 
 const WS_BASE = import.meta.env.VITE_WS_URL ?? ''   // '' → same host
 
-export function useWebSocket(deviceId: string) {
+export function useWebSocket(
+  deviceId:  string,
+  onMessage?: (data: Record<string, any>) => void,
+) {
   const setLiveReading = useStore((s) => s.setLiveReading)
-  const wsRef = useRef<WebSocket | null>(null)
+  const wsRef    = useRef<WebSocket | null>(null)
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cbRef    = useRef(onMessage)
+  cbRef.current  = onMessage   // keep latest callback without re-connecting
 
   const connect = useCallback(() => {
     const token = localStorage.getItem('token')
@@ -21,7 +26,12 @@ export function useWebSocket(deviceId: string) {
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data)
-        setLiveReading(data)
+        // ถ้า payload มี sensor fields → update live reading
+        if (data.pm2_5 !== undefined || data.pm25 !== undefined) {
+          setLiveReading(data)
+        }
+        // เรียก callback เสมอ (anomaly, etc.)
+        cbRef.current?.(data)
       } catch { /* ignore parse errors */ }
     }
     ws.onclose = (e) => {
